@@ -24,6 +24,10 @@ public:
     static double  constexpr mPhaseIncrement = frequency * kTwoPi / (double) mSampleRate;
 
     static void generateSineWave(void *pVoid, int32_t frames);
+
+private:
+    double mPhase = 0.0;
+    int mGlobalFormat = AAUDIO_FORMAT_PCM_FLOAT;
 };
 
 #endif //AAUDIOPLAYER_AAUDIOENGINE_H

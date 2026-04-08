@@ -3,11 +3,10 @@
 #include "AAudioEngine.h"
 #include <android/log.h>
 
-double mPhase = lrand48();
-int mGlobalFormat;
+
 
 using namespace std;
-AAudioEngine::AAudioEngine() = default;
+AAudioEngine::AAudioEngine() : mPhase(0.0), mGlobalFormat(AAUDIO_FORMAT_PCM_FLOAT) {}
 
 aaudio_result_t AAudioEngine::createPlayback(jint mFormat) {
     aaudio_result_t playStreamReturn, initStreamReturn;
@@ -44,14 +43,13 @@ void AAudioEngine::generateSineWave(void *pVoid, int32_t frames) {
 	
     float *floatData = (float *) pVoid;
     for (int i = 0; i < frames; ++i) {
-        float sampleValue = AAudioEngine::amplitude * sinf(mPhase);
+        float sampleValue = AAudioEngine::amplitude * sinf((float)mPhase);
         for (int j = 0; j < AAudioEngine::mChannelCount; j++) {
             floatData[i * AAudioEngine::mChannelCount + j] = sampleValue;
         }
         mPhase += AAudioEngine::mPhaseIncrement;
         if (mPhase >= AAudioEngine::kTwoPi){
-            if(mGlobalFormat == AAUDIO_FORMAT_PCM_I16)
-                mPhase -= AAudioEngine::kTwoPi; //Smooth Tone
+            mPhase -= AAudioEngine::kTwoPi;
         }
     }
 }
@@ -64,7 +62,7 @@ aaudio_result_t AAudioEngine::initStream(int mFormat) {
         return createBuilder;
     }
     AAudioStreamBuilder_setFormat(builder, mFormat);
-    AAudioStreamBuilder_setSampleRate(builder, 441000);
+    AAudioStreamBuilder_setSampleRate(builder, 44100);
     AAudioStreamBuilder_setSharingMode(builder,AAUDIO_SHARING_MODE_EXCLUSIVE);
     AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_NONE);
     AAudioStreamBuilder_setDataCallback(builder, myCallback, nullptr);
@@ -74,12 +72,21 @@ aaudio_result_t AAudioEngine::initStream(int mFormat) {
 
 aaudio_result_t AAudioEngine::reqOpenStream(AAudioStreamBuilder *builder) {
     aaudio_result_t openStream = AAudioStreamBuilder_openStream(builder, &stream_);
+    AAudioStreamBuilder_delete(builder);
     if(openStream != AAUDIO_OK) {
         __android_log_print(ANDROID_LOG_DEBUG,"AAUDIOENGINE","%s", AAudio_convertResultToText(openStream));
         return openStream;
     }
-    AAudioStream_setBufferSizeInFrames(stream_, AAudioStream_getBufferSizeInFrames(stream_));
     return openStream;
+}
+
+aaudio_result_t AAudioEngine::deleteStream() {
+    if(stream_ != nullptr){
+        AAudioStreamBuilder_deleteStreamBuilder(stream_);
+        stream_ = nullptr;
+        return AAUDIO_OK;
+    }
+    return AAUDIO_ERROR_INVALID_STATE;
 }
 
 aaudio_result_t AAudioEngine::playStream(AAudioStream *stream_) {
